@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   SafeAreaView,
   ScrollView,
@@ -18,64 +18,67 @@ export default function PlacesScreen() {
 
   const [city, setCity] = useState('');
 
+  
   const handleSubmit = () => {
     if (city.length === 0) {
       return;
     }
+
+  fetch(`https://api-adresse.data.gouv.fr/search/?q=${city}`)
+    .then((response) => response.json())
+    .then((data) => {
+      const firstCity = data.features[0];
+      const newPlace = {
+        name: firstCity.properties.city,
+        latitude: firstCity.geometry.coordinates[1],
+        longitude: firstCity.geometry.coordinates[0],
+      };
+
+      fetch('http://192.168.0.14:3000/places', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({nickname:user.nickname, 
+          name: newPlace.name ,
+          latitude:newPlace.latitude,
+          longitude:newPlace.longitude}),
+        })
   
 
-    fetch(`https://api-adresse.data.gouv.fr/search/?q=${city}`)
-      .then((response) => response.json())
-      .then((data) => {
-        const firstCity = data.features[0];
-        const newPlace = {
-          name: firstCity.properties.city,
-          latitude: firstCity.geometry.coordinates[1],
-          longitude: firstCity.geometry.coordinates[0],
-        };
+      dispatch(addPlace(newPlace));
+      setCity('');
+    });
 
-        fetch('http://192.168.43.254:3000/places', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({nickname:user.nickname, 
-            name: newPlace.name ,
-            latitude:newPlace.latitude,
-            longitude:newPlace.longitude}),
-          })
-    
-
-        dispatch(addPlace(newPlace));
-        setCity('');
-      });
   };
 
-  console.log(user.place.name)
-
+  // console.log(placeName);
+  
   const handleDelete = (placeName) => {
-    fetch('http://192.168.43.254:3000/places', {
+    fetch('http://192.168.0.14:3000/places', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: user.places.name, nickname: placeName }),
-    }).then(response => response.json())
-      .then(data => {
-        if(data.result){
-
-          dispatch(removePlace(placeName))
-          console.log(user.place.name)
-        }
-      });
-
+      body: JSON.stringify({ name: placeName, nickname: user.nickname }),
+    })
+    .then((response) => response.json())
+    .then((data) => {
+      console.log(data)
+      if (data.result) {
+        dispatch(removePlace(placeName));
+      }
+    });
   };
 
 
   const places = user.places.map((data, i) => {
+    // console.log(data.name)
     return (
       <View key={i} style={styles.card}>
         <View>
           <Text style={styles.name}>{data.name}</Text>
           <Text>LAT : {Number(data.latitude).toFixed(3)} LON : {Number(data.longitude).toFixed(3)}</Text>
         </View>
-        <FontAwesome name='trash-o' onPress={() => handleDelete(data.name)} size={25} color='#ec6e5b' />
+        <TouchableOpacity onPress={() => handleDelete(data.name)}>
+          <FontAwesome name='trash-o'  size={25} color='#ec6e5b' />
+        </TouchableOpacity>
       </View>
     );
   });
